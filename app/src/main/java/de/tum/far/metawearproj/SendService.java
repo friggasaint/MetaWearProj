@@ -31,7 +31,7 @@ public class SendService extends Service {
             sendIntent.setAction("de.tum.far.interappcommunication.IntentToUnity");
 
             // Here we fill the Intent with our data, here just a string with an incremented number in it.
-            sendIntent.putExtra(Intent.EXTRA_TEXT, MainActivity.orientationChange);
+            sendIntent.putExtra(Intent.EXTRA_TEXT, String.valueOf(MainActivity.tiltedStatus));
             // And here it goes ! our message is send to any other app that want to listen to it.
             sendBroadcast(sendIntent);
 
@@ -41,6 +41,7 @@ public class SendService extends Service {
         }
     };
 
+    // When service is started
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -49,15 +50,6 @@ public class SendService extends Service {
         handler.removeCallbacks(sendData);
         handler.postDelayed(sendData, 1000);
         return null;
-    }
-
-    // When service is started
-    @Override
-    public void onStart(Intent intent, int startid) {
-        numIntent = 0;
-        // We first start the Handler
-        handler.removeCallbacks(sendData);
-        handler.postDelayed(sendData, 1000);
     }
 
     @Override

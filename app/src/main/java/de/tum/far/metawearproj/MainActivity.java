@@ -21,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
+import android.widget.EditText;
 import android.widget.TextView;
 
 // MetaWear
@@ -31,18 +32,14 @@ import com.mbientlab.metawear.MetaWearBoard;
 import com.mbientlab.metawear.RouteManager;
 import com.mbientlab.metawear.UnsupportedModuleException;
 import com.mbientlab.metawear.data.CartesianFloat;
-import com.mbientlab.metawear.module.Accelerometer;
+//import com.mbientlab.metawear.module.Accelerometer;
 import com.mbientlab.metawear.module.Bmi160Gyro;
 import com.mbientlab.metawear.module.Bmi160Gyro.*;
 import com.mbientlab.metawear.module.Bmi160Accelerometer;
 import com.mbientlab.metawear.module.Bmi160Accelerometer.AccRange;
-import com.mbientlab.metawear.module.Bmi160Accelerometer.OutputDataRate;
+//import com.mbientlab.metawear.module.Bmi160Accelerometer.OutputDataRate;
 
-//Writting logs
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.lang.*;
 
 public class MainActivity extends AppCompatActivity implements ServiceConnection{
 
@@ -54,27 +51,31 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private MetaWearBoard mwBoard;
     private Bmi160Accelerometer accelModule;
     private Bmi160Gyro gyroModule;
-    private SendService sendService;
-    private TextView viewAccel, viewAccelX, viewAccelY, viewAccelZ;
+    //private SendService sendService;
+    private TextView viewAccel, viewAccelX, viewAccelY, viewAccelZ, viewAccelZTilt;
     private TextView viewGyro, viewGyroX, viewGyroY, viewGyroZ;
     private TextView viewConnected, viewContainerCounter, viewOrientation, viewOrientationChange;
+    private EditText editTiltThreshhold;
     private String accelMessage;
     private String gyroMessage;
     private String orientationMessage, initOrientationMessage;
     static String orientationChange;
 
-    private Boolean writeLog = false;
     private Boolean initOrientation = false;
 
-    private int containerCounter = 0;
-    private int[] positionContainerX = new int[250];
-    private int[] positionContainerY = new int[250];
-    private int[] positionContainerZ = new int[250];
-    private int positionX = 0, positionY = 0, positionZ = 0;
-    private int[] angleContainerX = new int[250];
-    private int[] angleContainerY = new int[250];
-    private int[] angleContainerZ = new int[250];
-    private int angleX = 0, angleY = 0, angleZ = 0;
+    static Boolean tiltedStatus = false; //tilted, yes or not
+    private float tiltThreshhold = 30.0f;
+
+
+    private float accelTiltX = 42.0f;
+    private float accelTiltY = 42.0f;
+    private float accelTiltZ = 42.0f;
+//    private int positionX = 0, positionY = 0, positionZ = 0;
+    private int containerCounter = 0; //should be at max array size
+    private int[] angleContainerX = new int[50];
+    private int[] angleContainerY = new int[50];
+    private int[] angleContainerZ = new int[50];
+//    private int angleX = 0, angleY = 0, angleZ = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         viewAccelX = (TextView)findViewById(R.id.accelX);
         viewAccelY = (TextView)findViewById(R.id.accelY);
         viewAccelZ = (TextView)findViewById(R.id.accelZ);
+        viewAccelZTilt = (TextView)findViewById(R.id.accelZTilt);
         viewGyro = (TextView)findViewById(R.id.showGyro);
         viewGyroX = (TextView)findViewById(R.id.gyroX);
         viewGyroY = (TextView)findViewById(R.id.gyroY);
@@ -93,13 +95,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         viewContainerCounter = (TextView)findViewById(R.id.containerCounter);
         viewOrientation = (TextView)findViewById(R.id.viewOrientation);
         viewOrientationChange = (TextView)findViewById(R.id.viewOrientationChange);
+        editTiltThreshhold  = (EditText)findViewById(R.id.editTiltThreshhold);
 
 
         // init Containers
-        for (int i = 0; i < positionContainerX.length -1; i++){
-            positionContainerX[i] = 0;
-            positionContainerY[i] = 0;
-            positionContainerZ[i] = 0;
+        for (int i = 0; i < angleContainerX.length -1; i++){
             angleContainerX[i] = 0;
             angleContainerY[i] = 0;
             angleContainerZ[i] = 0;
@@ -128,17 +128,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
         });
 
-        findViewById(R.id.startLog).setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.buttonEditThreshhold).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                writeLog = true;
-            }
-        });
-
-        findViewById(R.id.stopLog).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                writeLog = false;
+                setTiltThreshhold(Float.valueOf(editTiltThreshhold.getText().toString()));
             }
         });
 
@@ -200,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         mwBoard.setConnectionStateHandler(new MetaWearBoard.ConnectionStateHandler() {
             @Override
             public void connected() {
-                Log.i(LOG_TAG, "Connected");
+                //Log.i(LOG_TAG, "Connected");
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -208,7 +201,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     }
                 });
 
-
+//----------------------------------------Measuring starts------------------------------------------
                 try {
                     accelModule = mwBoard.getModule(Bmi160Accelerometer.class);
                     gyroModule  = mwBoard.getModule(Bmi160Gyro.class);
@@ -227,7 +220,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                         public void process(com.mbientlab.metawear.Message message) {
 
                                             // upping counter
-                                            if (containerCounter < 249) {
+                                            if (containerCounter < 49) {
                                                 containerCounter++;
                                             } else {
                                                 containerCounter = 0;
@@ -253,9 +246,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                                     viewGyroZ.setText(String.valueOf(containerSumUp(angleContainerZ)));
                                                 }
                                             });
-//                                            if (writeLog){
-//                                                appendLog(gyroMessage, "logs/_test.txt");
-//                                            }
                                         }
                                     });
                                 }
@@ -274,16 +264,22 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                 @Override
                                 public void process(com.mbientlab.metawear.Message message) {
                                     accelMessage = message.getData(CartesianFloat.class).toString();
-                                    positionContainerX[containerCounter] = (int)Math.round(message.getData(CartesianFloat.class).x());
-                                    positionContainerY[containerCounter] = (int)Math.round(message.getData(CartesianFloat.class).y());
-                                    positionContainerZ[containerCounter] = (int)Math.round(message.getData(CartesianFloat.class).z());
+                                    accelTiltX = (float)Math.toDegrees(Math.asin(message.getData(CartesianFloat.class).x()));
+                                    accelTiltY = (float)Math.toDegrees(Math.asin(message.getData(CartesianFloat.class).y()));
+                                    accelTiltZ = (float)Math.toDegrees(Math.asin(message.getData(CartesianFloat.class).z()));
+                                    if (accelTiltZ < tiltThreshhold) {
+                                        setTiltedStatus(true);
+                                    } else {
+                                        setTiltedStatus(false);
+                                    }
                                     runOnUiThread(new Runnable() {
                                         @Override
                                         public void run() {
                                             viewAccel.setText(accelMessage);
-                                            viewAccelX.setText(String.valueOf(containerSumUp(positionContainerX)));
-                                            viewAccelY.setText(String.valueOf(containerSumUp(positionContainerY)));
-                                            viewAccelZ.setText(String.valueOf(containerSumUp(positionContainerZ)));
+                                            viewAccelX.setText(String.valueOf(accelTiltX));
+                                            viewAccelY.setText(String.valueOf(accelTiltY));
+                                            viewAccelZ.setText(String.valueOf(accelTiltZ));
+                                            viewAccelZTilt.setText(String.valueOf(tiltedStatus));
                                         }
                                     });
 
@@ -308,9 +304,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                             orientationMessage = message.getData(Bmi160Accelerometer.SensorOrientation.class).toString();
 
                                             if(orientationMessage.equals(initOrientationMessage))
-                                                orientationChange = "took a sip";
+                                                orientationChange = "initPosition";
                                             else
-                                                orientationChange = "nothing";
+                                                orientationChange = "otherPosition";
 
                                             runOnUiThread(new Runnable() {
                                                 @Override
@@ -356,83 +352,27 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return sum;
     }
 
-    public void appendLog(String text, String path)
-    {
-        verifyStoragePermissions(this);
-        File logFile = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), path);
-        if (!logFile.exists())
-        {
-            try
-            {
-                logFile.getParentFile().mkdir();
-                logFile.createNewFile();
-            }
-            catch (IOException e)
-            {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+    private void waitIfLegitTilt(float checkaccelTiltZ){
+        long startTime = System.nanoTime();
+        boolean failedTilt = false;
+        while(1000000000.0 > (System.nanoTime() - startTime)){
+            if(checkaccelTiltZ < 60.0) {     //check of isNan or below 60 degress on z AxisTilt
+                setTiltedStatus(false);
+                failedTilt = false;
+                break;
             }
         }
-        try
-        {
-            //BufferedWriter for performance, true to set append to file flag
-            BufferedWriter buf = new BufferedWriter(new FileWriter(logFile, true));
-            buf.append(text);
-            buf.newLine();
-            buf.close();
-        }
-        catch (IOException e)
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+        if (failedTilt) {
+            setTiltedStatus(true);
         }
     }
 
-//    /* Checks if external storage is available for read and write */
-//    public boolean isExternalStorageWritable() {
-//        String state = Environment.getExternalStorageState();
-//        if (Environment.MEDIA_MOUNTED.equals(state)) {
-//            return true;
-//        }
-//        return false;
-//    }
-//
-//    /* Checks if external storage is available to at least read */
-//    public boolean isExternalStorageReadable() {
-//        String state = Environment.getExternalStorageState();
-//        if (Environment.MEDIA_MOUNTED.equals(state) ||
-//                Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-//            return true;
-//        }
-//        return false;
-//    }
-
-    private static final int REQUEST_EXTERNAL_STORAGE = 1;
-    private static String[] PERMISSIONS_STORAGE = {
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-    };
-
-    /**
-     * Checks if the app has permission to write to device storage
-     *
-     * If the app does not has permission then the user will be prompted to grant permissions
-     *
-     * @param activity
-     */
-    public static void verifyStoragePermissions(Activity activity) {
-        // Check if we have write permission
-        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-
-        if (permission != PackageManager.PERMISSION_GRANTED) {
-            // We don't have permission so prompt the user
-            ActivityCompat.requestPermissions(
-                    activity,
-                    PERMISSIONS_STORAGE,
-                    REQUEST_EXTERNAL_STORAGE
-            );
-        }
+    private void setTiltedStatus(Boolean bool){
+        this.tiltedStatus = bool;
     }
 
+    private void setTiltThreshhold(float threshhold){
+        this.tiltThreshhold = threshhold;
+    }
 
 }

@@ -38,6 +38,7 @@ import com.mbientlab.metawear.module.Bmi160Gyro.*;
 import com.mbientlab.metawear.module.Bmi160Accelerometer;
 import com.mbientlab.metawear.module.Bmi160Accelerometer.AccRange;
 //import com.mbientlab.metawear.module.Bmi160Accelerometer.OutputDataRate;
+import com.mbientlab.metawear.module.I2C;
 
 import java.lang.*;
 
@@ -46,15 +47,19 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private MetaWearBleService.LocalBinder serviceBinder;
     private final String MW_MAC_ADDRESS = "E6:E3:C3:AA:2F:F1",
             ACCEL_DATA = "accel_data",
-            GYRO_DATA = "gyro_data";
+            GYRO_DATA = "gyro_data",
+            I2Cads1115read = "ads1115read_data",
+            I2Cads1115config = "8e83"; //default "8583"
     private static final String LOG_TAG = "MetaWearProj";
     private MetaWearBoard mwBoard;
     private Bmi160Accelerometer accelModule;
     private Bmi160Gyro gyroModule;
+    private I2C i2cModule;
     //private SendService sendService;
     private TextView viewAccel, viewAccelX, viewAccelY, viewAccelZ, viewAccelZTilt;
     private TextView viewGyro, viewGyroX, viewGyroY, viewGyroZ;
     private TextView viewConnected, viewContainerCounter, viewOrientation, viewOrientationChange;
+    private TextView viewI2C;
     private EditText editTiltThreshhold;
     private String accelMessage;
     private String gyroMessage;
@@ -76,6 +81,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private int[] angleContainerY = new int[50];
     private int[] angleContainerZ = new int[50];
 //    private int angleX = 0, angleY = 0, angleZ = 0;
+    private String I2CReading = "XXXX";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,7 +100,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         viewConnected = (TextView)findViewById(R.id.showConnected);
         viewContainerCounter = (TextView)findViewById(R.id.containerCounter);
         viewOrientation = (TextView)findViewById(R.id.viewOrientation);
-        viewOrientationChange = (TextView)findViewById(R.id.viewOrientationChange);
+        viewOrientationChange = (TextView)findViewById(R.id.viewOrientationChng);
+        viewI2C = (TextView)findViewById(R.id.viewI2C);
         editTiltThreshhold  = (EditText)findViewById(R.id.editTiltThreshhold);
 
 
@@ -205,6 +212,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 try {
                     accelModule = mwBoard.getModule(Bmi160Accelerometer.class);
                     gyroModule  = mwBoard.getModule(Bmi160Gyro.class);
+                    i2cModule= mwBoard.getModule(I2C.class);
+
+                    i2cModule.writeData((byte) 0x48, (byte) 0x01, hexStringToArray(I2Cads1115config));
 
                     //get Data from Sensors
                     gyroModule.configure()
@@ -218,6 +228,24 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                     result.subscribe(GYRO_DATA, new RouteManager.MessageHandler() {
                                         @Override
                                         public void process(com.mbientlab.metawear.Message message) {
+
+                                            //work in progess-----------------------------------------------------------------
+                                            i2cModule.readData((byte) 0x48, (byte) 0x00, (byte) 2).onComplete(new AsyncOperation.CompletionHandler<byte[]>() {
+                                                @Override
+                                                public void success(byte[] result) {
+                                                    I2CReading = arrayToHexString(result);
+                                                    Integer.toString(interpolate(I2CReading));
+                                                    runOnUiThread(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            viewI2C.setText(I2CReading);
+                                                        }
+                                                    });
+
+                                                    //Log.i("MainActivity", String.format("%d", result[0]));
+                                                }
+                                            });
+                                            //-------------------------------------------------------------------------------
 
                                             // upping counter
                                             if (containerCounter < 49) {
@@ -374,5 +402,52 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private void setTiltThreshhold(float threshhold){
         this.tiltThreshhold = threshhold;
     }
+
+    //from Documentation
+    private static String arrayToHexString(byte[] value) {
+        if (value.length == 0) {
+            return "";
+        }
+
+        StringBuilder builder= new StringBuilder();
+        for(byte it: value) {
+            builder.append(String.format("%02x", it));
+        }
+
+        return builder.toString();
+    }
+
+    //from Documentation
+    private static byte[] hexStringToArray(String byteArrayString) {
+        if (byteArrayString.isEmpty()) {
+            return new byte[] { };
+        }
+
+        if (byteArrayString.length() % 2 != 0) {
+            byteArrayString= String.format("0%s", byteArrayString);
+        }
+
+        byte[] bytes= new byte[byteArrayString.length() / 2];
+        for(int i= 0, j= 0; i < byteArrayString.length(); i+= 2, j++) {
+            bytes[j]= (byte) Short.parseShort(byteArrayString.substring(i, i + 2), 16);;
+        }
+
+        return bytes;
+    }
+
+    private static String interpolateScale(String read){
+        int weight;
+
+        //551-37;517-35;490-34;458-32;431-31;402;-30;376-26;
+
+        weight = Integer.decode(read);
+        switch (weight){
+            case 1: weight <
+        }
+
+        read = String.valueOf(weight);
+
+        return read;
+    };
 
 }

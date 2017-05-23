@@ -12,6 +12,24 @@
     tools:context="de.tum.far.metawearproj.MainActivity"
     tools:showIn="@layout/activity_main">
 
+    <TextView
+        android:id="@+id/textViewScale"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Weight to last drink"
+        android:textAlignment="center"
+        android:layout_below="@+id/viewI2C"
+        android:layout_alignEnd="@+id/textAccel" />
+
+    <TextView
+        android:id="@+id/textViewScaleStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Accumulated Weight"
+        android:textAlignment="center"
+        android:layout_below="@+id/viewLastDrink"
+        android:layout_alignStart="@+id/textViewScale" />
+
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -72,64 +90,70 @@
         android:layout_centerHorizontal="true" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Gyro"
         android:id="@+id/gyroX"
-        android:layout_gravity="right"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
         android:layout_alignTop="@+id/accelX"
-        android:layout_alignParentEnd="true" />
+        android:layout_gravity="right"
+        android:text="Gyro"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="invisible" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Gyro"
         android:id="@+id/gyroY"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
         android:layout_below="@+id/gyroX"
-        android:layout_alignParentEnd="true"
-        android:layout_gravity="right" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_gravity="right"
         android:text="Gyro"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="invisible" />
+
+    <TextView
         android:id="@+id/gyroZ"
-        android:layout_below="@+id/gyroY"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_alignParentEnd="true"
-        android:layout_gravity="right" />
+        android:layout_below="@+id/gyroY"
+        android:layout_gravity="right"
+        android:text="Gyro"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="invisible" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Accel"
         android:id="@+id/accelX"
-        android:layout_gravity="left"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_below="@+id/textAccelTilt"
-        android:layout_alignParentStart="true" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Accel"
-        android:id="@+id/accelY"
         android:layout_gravity="left"
-        android:layout_below="@+id/accelX"
-        android:layout_alignParentStart="true" />
+        android:layout_toStartOf="@+id/showConnected"
+        android:text="Accel"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="invisible" />
 
     <TextView
+        android:id="@+id/accelY"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="Accel"
-        android:id="@+id/accelZ"
-        android:layout_below="@+id/accelY"
         android:layout_alignParentStart="true"
-        android:layout_gravity="left" />
+        android:layout_below="@+id/accelX"
+        android:layout_gravity="left"
+        android:text="Accel"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="invisible" />
+
+    <TextView
+        android:id="@+id/accelZ"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/accelY"
+        android:layout_gravity="left"
+        android:text="Accel"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:visibility="invisible" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -145,23 +169,25 @@
         android:text="viewOrientation"
         android:id="@+id/viewOrientation"
         android:layout_below="@+id/editTiltThreshhold"
-        android:layout_centerHorizontal="true" />
+        android:layout_alignEnd="@+id/showGyro" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="AccelTilt"
         android:id="@+id/textAccelTilt"
-        android:layout_below="@+id/showGyro"
-        android:layout_alignParentStart="true" />
-
-    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="GyroLast50Iterations"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/showGyro"
+        android:text="AccelTilt"
+        android:visibility="invisible" />
+
+    <TextView
         android:id="@+id/textGyroLast10Secs"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
         android:layout_alignTop="@+id/textAccelTilt"
-        android:layout_alignParentEnd="true" />
+        android:text="GyroLast50Iterations"
+        android:visibility="invisible" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -169,8 +195,9 @@
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:text="accelZTilt"
         android:id="@+id/accelZTilt"
-        android:layout_below="@+id/accelZ"
-        android:layout_alignParentStart="true" />
+        android:layout_alignBaseline="@+id/textAccelTilt"
+        android:layout_alignBottom="@+id/textAccelTilt"
+        android:layout_alignStart="@+id/accelX" />
 
     <EditText
         android:layout_width="wrap_content"
@@ -192,30 +219,59 @@
         android:layout_alignParentEnd="true" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="viewI2C"
         android:id="@+id/textI2C"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Weight in grams"
         android:layout_below="@+id/viewOrientationChng"
-        android:layout_alignStart="@+id/viewOrientation" />
+        android:layout_alignEnd="@+id/viewOrientation" />
 
     <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="viewI2C"
         android:id="@+id/viewI2C"
-        android:layout_below="@+id/textI2C"
-        android:layout_alignStart="@+id/viewOrientationChng"
-        android:layout_alignEnd="@+id/viewOrientationChng" />
-
-    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="viewI2C"
+        android:textAlignment="center"
         android:textAppearance="?android:attr/textAppearanceLarge"
-        android:text="viewOrientationChng"
+        android:layout_below="@+id/textI2C"
+        android:layout_alignEnd="@+id/editTiltThreshhold" />
+
+    <TextView
+        android:id="@+id/viewLastDrink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textViewScale"
+        android:layout_centerHorizontal="true"
+        android:text="viewLastDrink"
+        android:textAlignment="center"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <TextView
+        android:id="@+id/viewScaleStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="viewScaleStatus"
+        android:textAlignment="center"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:layout_below="@+id/textViewScaleStatus"
+        android:layout_centerHorizontal="true" />
+
+    <TextView
         android:id="@+id/viewOrientationChng"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_below="@+id/viewOrientation"
-        android:layout_toEndOf="@+id/startAccel" />
+        android:layout_toEndOf="@+id/startAccel"
+        android:text="viewOrientationChng"
+        android:textAlignment="center"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <Button
+        android:id="@+id/buttonRescale"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@+id/textI2C"
+        android:text="rescale" />
 
 </RelativeLayout>

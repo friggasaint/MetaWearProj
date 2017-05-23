@@ -9,6 +9,7 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -41,6 +42,7 @@ import com.mbientlab.metawear.module.Bmi160Accelerometer.AccRange;
 import com.mbientlab.metawear.module.I2C;
 
 import java.lang.*;
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements ServiceConnection{
 
@@ -59,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private TextView viewAccel, viewAccelX, viewAccelY, viewAccelZ, viewAccelZTilt;
     private TextView viewGyro, viewGyroX, viewGyroY, viewGyroZ;
     private TextView viewConnected, viewContainerCounter, viewOrientation, viewOrientationChange;
-    private TextView viewI2C;
+    private TextView viewI2C,viewScaleStatus,viewLastDrink;
     private EditText editTiltThreshhold;
     private String accelMessage;
     private String gyroMessage;
@@ -71,6 +73,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     static Boolean tiltedStatus = false; //tilted, yes or not
     private float tiltThreshhold = 30.0f;
 
+    private Handler h = new Handler();
+    private int delay = 500; //milliseconds on I2C refresh
+    private int calcA, calcB;
+    private ScaleHandler scaleObject = new ScaleHandler();
 
     private float accelTiltX = 42.0f;
     private float accelTiltY = 42.0f;
@@ -82,6 +88,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     private int[] angleContainerZ = new int[50];
 //    private int angleX = 0, angleY = 0, angleZ = 0;
     private String I2CReading = "XXXX";
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,6 +110,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         viewOrientation = (TextView)findViewById(R.id.viewOrientation);
         viewOrientationChange = (TextView)findViewById(R.id.viewOrientationChng);
         viewI2C = (TextView)findViewById(R.id.viewI2C);
+        viewLastDrink = (TextView)findViewById(R.id.viewLastDrink);
+        viewScaleStatus = (TextView)findViewById(R.id.viewScaleStatus);
         editTiltThreshhold  = (EditText)findViewById(R.id.editTiltThreshhold);
 
 
@@ -135,6 +145,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
         });
 
+        //Buttons -------------------------------------------------------------------------------
         findViewById(R.id.buttonEditThreshhold).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -142,6 +153,13 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
         });
 
+        findViewById(R.id.buttonRescale).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                scaleObject.settingNewCorrection();
+            }
+        });
+        //---------------------------------------------------------------------------------------
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -214,7 +232,39 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                     gyroModule  = mwBoard.getModule(Bmi160Gyro.class);
                     i2cModule= mwBoard.getModule(I2C.class);
 
+                    //Data I2C viewLastDrink viewScaleStatus
                     i2cModule.writeData((byte) 0x48, (byte) 0x01, hexStringToArray(I2Cads1115config));
+                    h.postDelayed(new Runnable(){
+                        @Override
+                        public void run() {
+                            i2cModule.readData((byte) 0x48, (byte) 0x00, (byte) 2).onComplete(new AsyncOperation.CompletionHandler<byte[]>() {
+                                @Override
+                                public void success(byte[] result) {
+                                    calcA = result[0]&0xFF;
+                                    calcB = result[1]&0xFF;
+                                    scaleObject.addScaleValue(calcA*256+calcB);
+                                    I2CReading = Integer.toString(interpolateWeight(scaleObject.returnScaleValue()));
+                                    if(!scaleObject.checkValueStability(10))
+                                        scaleObject.setSearching(true);
+                                    scaleObject.challengeChangeStableWeight(2, interpolateWeight(scaleObject.returnScaleValue()));
+
+                                    //Integer.toString(I2CReading);
+                                    runOnUiThread(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            viewI2C.setText(I2CReading);
+                                            viewScaleStatus.setText(Integer.toString(scaleObject.getAccumulatedValue()));
+                                            //viewLastDrink.setText(Boolean.toString(scaleObject.getSearching()));
+                                            viewLastDrink.setText(Integer.toString(scaleObject.getLastChange()));
+                                        }
+                                    });
+
+                                    //Log.i("MainActivity", String.format("%d", result[0]));
+                                }
+                            });
+                            h.postDelayed(this, delay);
+                        }
+                    }, delay);
 
                     //get Data from Sensors
                     gyroModule.configure()
@@ -228,24 +278,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                                     result.subscribe(GYRO_DATA, new RouteManager.MessageHandler() {
                                         @Override
                                         public void process(com.mbientlab.metawear.Message message) {
-
-                                            //work in progess-----------------------------------------------------------------
-                                            i2cModule.readData((byte) 0x48, (byte) 0x00, (byte) 2).onComplete(new AsyncOperation.CompletionHandler<byte[]>() {
-                                                @Override
-                                                public void success(byte[] result) {
-                                                    I2CReading = arrayToHexString(result);
-                                                    Integer.toString(interpolate(I2CReading));
-                                                    runOnUiThread(new Runnable() {
-                                                        @Override
-                                                        public void run() {
-                                                            viewI2C.setText(I2CReading);
-                                                        }
-                                                    });
-
-                                                    //Log.i("MainActivity", String.format("%d", result[0]));
-                                                }
-                                            });
-                                            //-------------------------------------------------------------------------------
 
                                             // upping counter
                                             if (containerCounter < 49) {
@@ -435,19 +467,45 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         return bytes;
     }
 
-    private static String interpolateScale(String read){
+    public static int interpolateWeight(int read){
+        float weight0 = 0 ,weight1 = 0,sample0 = 0,sample1 = 0;
         int weight;
-
-        //551-37;517-35;490-34;458-32;431-31;402;-30;376-26;
-
-        weight = Integer.decode(read);
-        switch (weight){
-            case 1: weight <
+        //project-kitchenscale: designed for 100gram load cell
+        // 730-575;680-534;613-480;576-450;539-420;501-389;466-361;431-333;407-313;354-270;192-139;96-61;20-0
+        if ((read>730)) {
+            weight1 = 575; weight0 = 534; sample1 = 730; sample0 = 680;
+        } else if ((730>=read)&&(read>680)){
+            weight1 = 575; weight0 = 534; sample1 = 730; sample0 = 680;
+        } else if ((680>=read)&&(read>613)){
+            weight1 =534; weight0 = 480; sample1 = 680; sample0 = 613;
+        } else if ((613>=read)&&(read>576)){
+            weight1 =480; weight0 = 450; sample1 = 613; sample0 = 576;
+        } else if ((576>=read)&&(read>539)){
+            weight1 =450; weight0 = 420; sample1 = 576; sample0 = 539;
+        } else if ((539>=read)&&(read>501)){
+            weight1 =420; weight0 = 389; sample1 = 539; sample0 = 501;
+        } else if ((501>=read)&&(read>466)){
+            weight1 =389; weight0 = 361; sample1 = 501; sample0 = 466;
+        } else if ((466>=read)&&(read>431)){
+            weight1 =361; weight0 = 333; sample1 = 466; sample0 = 431;
+        } else if ((431>=read)&&(read>407)){
+            weight1 =333; weight0 = 313; sample1 = 431; sample0 = 407;
+        } else if ((407>=read)&&(read>354)){
+            weight1 =313; weight0 = 270; sample1 = 407; sample0 = 354;
+        } else if ((354>=read)&&(read>192)){
+            weight1 =270;  weight0 = 139; sample1 = 354; sample0 = 192;
+        } else if ((192>=read)&&(read>96)){
+            weight1 =139; weight0 = 61; sample1 = 192; sample0 = 96;
+        } else if ((96>=read)&&(read>20)){
+            weight1 =61;  weight0 = 0; sample1 = 96; sample0 = 20;
+        } else if ((20>=read)){
+            weight1 =61;  weight0 = 0; sample1 = 96; sample0 = 20;
         }
-
-        read = String.valueOf(weight);
-
-        return read;
+        //linear interpolation
+        weight = (int)(weight0+((weight1-weight0)/(sample1-sample0))*((float)read-sample0));
+        return weight;
     };
+
+
 
 }
